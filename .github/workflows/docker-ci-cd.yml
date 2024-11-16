@@ -27,7 +27,7 @@ jobs:
 
     - name: Run Backend Tests
       working-directory: ./backend
-
+      run: npm test
 
     - name: Build Backend Docker Image
       run: docker build -t abhaypratapsingh7704866570/backend:latest ./backend
@@ -39,6 +39,7 @@ jobs:
 
     - name: Run Frontend Tests
       working-directory: ./frontend
+      run: npm test
 
     - name: Build Frontend Production Files
       working-directory: ./frontend
@@ -61,3 +62,38 @@ jobs:
     - name: Push Frontend Docker Image
       run: docker push abhaypratapsingh7704866570/frontend:latest
 
+    # Deploy to EC2 Instance
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_KEY }}
+        port: ${{ secrets.EC2_PORT }}
+        script: |
+          # Pull the latest Docker images
+          docker pull abhaypratapsingh7704866570/backend:latest
+          docker pull abhaypratapsingh7704866570/frontend:latest
+
+          # Stop and remove existing containers (if any)
+          docker stop backend frontend || true
+          docker rm backend frontend || true
+
+          # Create Docker network if not exists
+          docker network create mern-network || true
+
+          # Run Backend Container
+          docker run -d \
+            --name backend \
+            --network mern-network \
+            -e PORT=5000 \
+            -e MONGODB_URI=${{ secrets.MONGODB_URI }} \
+            -p 5000:5000 \
+            abhaypratapsingh7704866570/backend:latest
+
+          # Run Frontend Container
+          docker run -d \
+            --name frontend \
+            --network mern-network \
+            -p 80:80 \
+            abhaypratapsingh7704866570/frontend:latest
