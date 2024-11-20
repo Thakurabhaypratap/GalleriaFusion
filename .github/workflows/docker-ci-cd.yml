@@ -3,24 +3,22 @@ name: MERN Stack CI/CD Pipeline
 on:
   push:
     branches:
-      - main  # Run this workflow when pushing to the main branch
+      - main
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout the repository
     - name: Checkout Code
       uses: actions/checkout@v3
 
-    # Step 2: Set up Node.js
     - name: Set up Node.js
       uses: actions/setup-node@v3
       with:
         node-version: 20
 
-    # Backend: Install, Test, and Build Docker Image
+    # Backend
     - name: Install Backend Dependencies
       working-directory: ./backend
       run: npm install
@@ -30,38 +28,39 @@ jobs:
       run: npm test
 
     - name: Build Backend Docker Image
-      run: docker build -t abhaypratapsingh7704866570/backend:latest ./backend
+      run: docker build -t abhaypratapsingh7704866570/backend:${{ github.sha }} ./backend
 
-    # Frontend: Install, Test, Build, and Build Docker Image
+    # Frontend
     - name: Install Frontend Dependencies
       working-directory: ./frontend
       run: npm install
 
-    
-      
+    - name: Run Frontend Tests
+      working-directory: ./frontend
+      run: npm test
 
     - name: Build Frontend Production Files
       working-directory: ./frontend
-      run: npm run build
+      run: |
+        REACT_APP_API_URL=${{ secrets.API_URL }} npm run build
 
     - name: Build Frontend Docker Image
-      run: docker build -t abhaypratapsingh7704866570/frontend:latest ./frontend
+      run: docker build -t abhaypratapsingh7704866570/frontend:${{ github.sha }} ./frontend
 
-    # Docker Hub Login
+    # Docker Hub Login and Push
     - name: Log in to Docker Hub
       uses: docker/login-action@v2
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    # Push Docker Images to Docker Hub
     - name: Push Backend Docker Image
-      run: docker push abhaypratapsingh7704866570/backend:latest
+      run: docker push abhaypratapsingh7704866570/backend:${{ github.sha }}
 
     - name: Push Frontend Docker Image
-      run: docker push abhaypratapsingh7704866570/frontend:latest
+      run: docker push abhaypratapsingh7704866570/frontend:${{ github.sha }}
 
-    # Deploy to EC2 Instance
+    # Deploy to EC2
     - name: Deploy to EC2
       uses: appleboy/ssh-action@v0.1.5
       with:
@@ -70,29 +69,21 @@ jobs:
         key: ${{ secrets.EC2_KEY }}
         port: ${{ secrets.EC2_PORT }}
         script: |
-          # Pull the latest Docker images
-          docker pull abhaypratapsingh7704866570/backend:latest
-          docker pull abhaypratapsingh7704866570/frontend:latest
-
-          # Stop and remove existing containers (if any)
+          set -e
+          docker pull abhaypratapsingh7704866570/backend:${{ github.sha }}
+          docker pull abhaypratapsingh7704866570/frontend:${{ github.sha }}
           docker stop backend frontend || true
           docker rm backend frontend || true
-
-          # Create Docker network if not exists
           docker network create mern-network || true
-
-          # Run Backend Container
           docker run -d \
             --name backend \
             --network mern-network \
             -e PORT=5000 \
             -e MONGODB_URI=${{ secrets.MONGODB_URI }} \
             -p 5000:5000 \
-            abhaypratapsingh7704866570/backend:latest
-
-          # Run Frontend Container
+            abhaypratapsingh7704866570/backend:${{ github.sha }}
           docker run -d \
             --name frontend \
             --network mern-network \
             -p 80:80 \
-            abhaypratapsingh7704866570/frontend:latest
+            abhaypratapsingh7704866570/frontend:${{ github.sha }}
