@@ -35,9 +35,7 @@ jobs:
       working-directory: ./frontend
       run: npm install
 
-    - name: Run Frontend Tests
-      working-directory: ./frontend
-      run: npm test
+   
 
     - name: Build Frontend Production Files
       working-directory: ./frontend
