@@ -1,11 +1,10 @@
 {
-  "name": "backend",
+  "name": "nodenewapp",
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Placeholder test passed!\"",
-    "dev": "  src/index.js "
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
@@ -16,4 +15,3 @@
     "express": "^4.21.1"
   }
 }
-
